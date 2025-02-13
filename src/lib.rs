@@ -1,12 +1,6 @@
 use std::ptr::NonNull;
 use std::marker::PhantomData;
 
-enum SearchType {
-    LVR,
-    VLR,
-    VRL,
-}
-
 type Link<T> = NonNull<TreeNode<T>>;
 
 pub struct Tree<T> {
@@ -16,7 +10,7 @@ pub struct Tree<T> {
     _ghost: PhantomData<T>,
 }
 
-impl Tree<T> {
+impl<T: std::cmp::PartialEq> Tree<T> {
     pub fn new() -> Self {
         Self {
             head:   NonNull::dangling(),
@@ -26,32 +20,48 @@ impl Tree<T> {
         }
     }
 
-    pub fn search_node(&mut self, order: SearchType, val: T) -> Box<Node<T>> {
-        unsafe {
-            match order {
-                SearchType::LVR => sub_search_lvr(val),
-                SearchType::VLR => sub_search_vlr(val),
-                SearchType::VRL => sub_search_vrl(val),
-            }
-        }
-    }
-
-    fn sub_search_lvr(&mut self, val: T) -> Box<Node<T>> {
+    pub fn search_lvr(&mut self, val: T) -> Box<TreeNode<T>> {
         panic!("Unimplmented!");
     }
 
-    fn sub_search_vlr(&mut self, val: T) -> Box<Node<T>> {
+    pub fn search_vlr(&mut self, val: T) -> Option<Box<TreeNode<T>>> {
         unsafe {
-            if self.head.elem == val {
-                return Box::new(self.head);
+            if self.head.read().elem == val {
+                return Some(Box::new(self.head.read()));
             }
 
-            let rax: Box<Node<T>> = ;
-            
+            let mut stack: Vec<Link<T>> = vec![];
+            let mut cur_node: Link<T> = self.head.read().left;
+
+            stack.push(cur_node);
+
+            /*
+             *
+             *      what's the algorithm
+             *
+             *      first we check if our only node on the stack is the one
+             *          if not, we push its left node and process that one
+             *          if we encounter a dangling node, we peek the stack
+             *          check if it has a right node and process that one
+             *          if it dangles again, then we pop because we're done with that node
+             *          if the pop is none, then we are done
+             *
+             */
+
+            while cur_node.read().elem != val {
+                if cur_node == NonNull::dangling() {
+                    return None;
+                }
+                
+                
+
+            }
+
+            Some(Box::new(cur_node.read()))
         }
     }
 
-    fn sub_search_vrl(&mut self, val: T) -> Box<Node<T>> {
+    pub fn search_vrl(&mut self, val: T) -> Box<TreeNode<T>> {
         panic!("Unimplmented!");
     }
 }
@@ -62,7 +72,7 @@ pub struct TreeNode<T> {
     right: Link<T>,
 }
 
-impl TreeNode<T> {
+impl<T> TreeNode<T> {
     
 }
 
