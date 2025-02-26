@@ -72,6 +72,43 @@ impl<T: std::cmp::PartialEq> Tree<T> {
     pub fn search_vrl(&mut self, _val: T) -> Box<TreeNode<T>> {
         panic!("Unimplmented!");
     }
+
+    pub fn search_parent_vlr(&mut self, val: T) -> Option<Box<TreeNode<T>>> {
+        if self.head == NonNull::dangling() {
+            return None;
+        }
+
+        unsafe {
+
+            let mut stack: Vec<Link<T>> = vec![];
+
+            stack.push(self.head);
+
+            let mut cur_node: Link<T> = stack[0];
+
+            while !stack.is_empty() {
+                if cur_node.read().right != NonNull::dangling() {
+                    if cur_node.read().right.read().elem == val {
+                        break;
+                    }
+
+                    stack.push(cur_node.read().right);
+                }
+
+                if cur_node.read().left != NonNull::dangling() {
+                    if cur_node.read().left.read().elem == val {
+                        break;
+                    }
+
+                    stack.push(cur_node.read().left);
+                }
+
+                cur_node = stack.pop().unwrap();
+            }
+
+            Some(Box::new(cur_node.read()))
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -122,5 +159,6 @@ mod tests {
         assert_eq!(box_r == tree.search_vlr(1).unwrap(), false);
         assert_eq!(box_l == tree.search_vlr(1).unwrap(), false);
         assert_eq!(box_r_r== tree.search_vlr(10).unwrap(), false);
+        assert_eq!(box_r == tree.search_parent_vlr(70).unwrap(), true);
     }
 }
