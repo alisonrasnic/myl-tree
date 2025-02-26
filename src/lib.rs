@@ -20,6 +20,18 @@ impl<T: std::cmp::PartialEq> Tree<T> {
         self.head = Link::new(node as *mut _).expect("ptr is null");
     }
 
+    pub fn set_left(&mut self, node: &mut TreeNode<T>) {
+        unsafe {
+            self.head.read().left = Link::new(node as &mut _).expect("ptr is null");
+        }
+    }
+
+    pub fn set_right(&mut self, node: &mut TreeNode<T>) {
+        unsafe {
+            self.head.read().right = Link::new(node as &mut _).expect("ptr is null");
+        }
+    }
+
     pub fn search_lvr(&mut self, _val: T) -> Box<TreeNode<T>> {
         panic!("Unimplmented!");
     }
