@@ -16,6 +16,36 @@ impl<T: std::cmp::PartialEq> Tree<T> {
         }
     }
 
+    // GETTER
+    
+    pub fn get_head(&self) -> Option<Box<TreeNode<T>>> {
+        unsafe {
+            if self.head != NonNull::dangling() {
+                return Some(Box::new(self.head.read()));
+            } else {
+                return None;
+            }
+        }
+    }
+
+    pub fn get_left(&self) -> Option<Box<TreeNode<T>>> {
+        if self.get_head().is_some() {
+            let head = self.get_head().unwrap();
+            return head.get_left();
+        } else {
+            return None;
+        }
+    }
+
+    pub fn get_right(&self) -> Option<Box<TreeNode<T>>> {
+        if self.get_head().is_some() {
+            let head = self.get_head().unwrap();
+            return head.get_right();
+        } else {
+            return None;
+        }
+    }
+
     pub fn set_head(&mut self, node: &mut TreeNode<T>) {
         self.head = Link::new(node as *mut _).expect("ptr is null");
     }
@@ -123,6 +153,30 @@ impl<T> TreeNode<T> {
         Self { elem: val, left: NonNull::dangling(), right: NonNull::dangling() }
     }
 
+    pub fn get_elem(&self) -> &T {
+        &self.elem
+    }
+
+    pub fn get_left(&self) -> Option<Box<TreeNode<T>>> {
+        unsafe {
+            if self.left != NonNull::dangling() {
+                return Some(Box::new(self.left.read()));
+            } else {
+                return None;
+            }
+        }
+    }
+
+    pub fn get_right(&self) -> Option<Box<TreeNode<T>>> {
+        unsafe {
+            if self.right != NonNull::dangling() {
+                return Some(Box::new(self.right.read()));
+            } else {
+                return None;
+            }
+        }
+    }
+
     pub fn set_left(&mut self, node: &mut TreeNode<T>) {
         self.left = Link::new(node as *mut _).expect("ptr is null");
     }
@@ -151,8 +205,9 @@ mod tests {
         head_l.set_left(&mut head_l_l);
 
         let box_r = Box::new(head_r);
-        let box_l = Box::new(head_l);
         let box_r_r = Box::new(head_r_r);
+        let box_l = Box::new(head_l);
+        let box_l_l = Box::new(head_l_l);
         assert_eq!(box_r == tree.search_vlr(7).unwrap(), true);
         assert_eq!(box_l == tree.search_vlr(2).unwrap(), true);
         assert_eq!(box_r_r== tree.search_vlr(70).unwrap(), true);
@@ -160,5 +215,33 @@ mod tests {
         assert_eq!(box_l == tree.search_vlr(1).unwrap(), false);
         assert_eq!(box_r_r== tree.search_vlr(10).unwrap(), false);
         assert_eq!(box_r == tree.search_parent_vlr(70).unwrap(), true);
+
+        assert_eq!(head.get_left() == Some(box_l), true);
+        assert_eq!(head.get_right() == Some(box_r), true);
+        assert_eq!(head.get_left() == Some(box_l_l), false);
+
+        assert_eq!(head.get_right().unwrap().get_right() == Some(box_r_r), true);
+    }
+
+    #[test]
+    fn tree_test_parent_search() {
+        let mut tree = Tree::new();
+        let mut head = TreeNode::new(5);
+        tree.set_head(&mut head);
+        let mut head_l = TreeNode::new(2);
+        let mut head_r = TreeNode::new(7);
+        let mut head_r_r = TreeNode::new(70);
+        head_r.set_right(&mut head_r_r);
+        head.set_left(&mut head_l);
+        head.set_right(&mut head_r);
+        let mut head_l_l = TreeNode::new(1);
+        head_l.set_left(&mut head_l_l);
+
+        let box_r = Box::new(head_r);
+        let box_r_r = Box::new(head_r_r);
+        let box_l = Box::new(head_l);
+        let box_l_l = Box::new(head_l_l);
+
+        assert_eq!(tree.search_parent_vlr(70).unwrap() == box_r, true);       
     }
 }
