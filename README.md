@@ -16,6 +16,6 @@ let node_l = TreeNode::new(-1);
 
 head.set_left(node_l);
 
-assert_eq!(tree.search_vlr(-1).unwrap() == Box::new(node_l), true);
+assert_eq!(tree.search_vlr(-1).unwrap().cmp_ptr(&node_l), true);
 
 ```
