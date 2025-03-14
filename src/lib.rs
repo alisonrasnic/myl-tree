@@ -55,13 +55,13 @@ impl<T: std::cmp::PartialEq> Cursor<T> {
 
     pub fn set_left_ptr(&mut self, ptr: Link<T>) {
         unsafe {
-            self.curr.read().set_left_ptr(ptr);
+            self.curr.as_mut().set_left_ptr(ptr);
         }
     }
 
     pub fn set_right_ptr(&mut self, ptr: Link<T>) {
         unsafe {
-            self.curr.read().set_right_ptr(ptr);
+            self.curr.as_mut().set_right_ptr(ptr);
         }
     }
 
@@ -224,7 +224,7 @@ impl<T: std::cmp::PartialEq> Tree<T> {
     pub fn swap_cursors(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) {
         // Swaps the nodes at two cursors in-place without changing children
 
-        panic!("Currently malfunctioning line 227");
+        //panic!("Currently malfunctioning line 227");
 
         let mut parent_1 = self.search_parent_vlr(cursor1.get_value());
         let mut parent_2 = self.search_parent_vlr(cursor2.get_value());
@@ -277,17 +277,21 @@ impl<T: std::cmp::PartialEq> Tree<T> {
             let mut parent_1 = parent_1.as_mut().unwrap();
             let mut parent_2 = parent_2.as_mut().unwrap();
 
-            if parent_2.1 == Dir::LEFT {
-                parent_2.0.set_left_ptr(cursor1.get_ptr());
-            } else {
-                parent_2.0.set_right_ptr(cursor1.get_ptr());
-            }
-
             if parent_1.1 == Dir::LEFT {
                 parent_1.0.set_left_ptr(cursor2.get_ptr());
+                println!("parent_1: LEFT");
             } else {
                 parent_1.0.set_right_ptr(cursor2.get_ptr());
-            }     
+                println!("parent_1: RIGHT");
+            }
+
+            if parent_2.1 == Dir::LEFT {
+                parent_2.0.set_left_ptr(cursor1.get_ptr());
+                println!("parent_2: Left");
+            } else {
+                parent_2.0.set_right_ptr(cursor1.get_ptr());
+                println!("parent_2: RIGHT");
+            }    
         }
 
         
@@ -552,12 +556,14 @@ mod tests {
 
         head_l.set_left(&mut head_l_l);
 
-
         let curs1 = tree.search_vlr(&50).unwrap();
         let curs2 = tree.search_vlr(&200).unwrap();
 
+        assert_eq!(*head.get_left().unwrap().get_elem() == 200, false);
+
         tree.swap_cursors(curs1, curs2);
 
+        assert_eq!(*head.get_right().unwrap().get_elem() == 50, true);
         assert_eq!(*head.get_left().unwrap().get_elem() == 200, true);
     }
 }
