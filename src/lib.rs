@@ -223,83 +223,115 @@ impl<T: std::cmp::PartialEq> Tree<T> {
 
     pub fn swap_cursors(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) {
         // Swaps the nodes at two cursors in-place without changing children
-
-        //panic!("Currently malfunctioning line 227");
-
-        let mut parent_1 = self.search_parent_vlr(cursor1.get_value());
-        let mut parent_2 = self.search_parent_vlr(cursor2.get_value());
-
-        /*let mut curs_1_l = cursor1.get_left();
-        let mut curs_1_r = cursor1.get_right();
-
-        let mut curs_2_l = cursor2.get_left();
-        let mut curs_2_r = cursor2.get_right();*/
-
-        //      1
-        //     / \
-        //    2   3
-        //   / \ / \
-        //   4 5 6 7
-        //
-        //   if we wanted to swap 5 and 3
-        //
-        //      1
-        //     / \
-        //    2   5
-        //   / \ / \
-        //   4 3 6 7
-        //
-        //   swapped in-place
-        //
-        //   so what happened?
-        //
-        //   the parent of 5 is our head
-        //   the parent of 3 is 2
-        //
-        //   parent_2.set_right(node_1);
-        //   parent_1.set_right(node_2);
-        //
-        //   okay so now what
-        //   however, simply this would end up with our solution looking more like
-        //
-        //      1
-        //     / \
-        //    2   5
-        //   / \
-        //  4   3
-        //     / \
-        //    6   7
-
-        if parent_1.is_none() || parent_2.is_none() {
-            panic!("Either one ptr is null or TODO for swapping head");
-        } else {
-
-            let mut parent_1 = parent_1.as_mut().unwrap();
-            let mut parent_2 = parent_2.as_mut().unwrap();
-
-            if parent_1.1 == Dir::LEFT {
-                parent_1.0.set_left_ptr(cursor2.get_ptr());
-                println!("parent_1: LEFT");
-            } else {
-                parent_1.0.set_right_ptr(cursor2.get_ptr());
-                println!("parent_1: RIGHT");
+        unsafe {
+            if cursor1.cmp_ptr(self.head.as_ptr()) && cursor2.cmp_ptr(self.head.as_ptr()) {
+                return;
             }
 
-            if parent_2.1 == Dir::LEFT {
-                parent_2.0.set_left_ptr(cursor1.get_ptr());
-                println!("parent_2: Left");
-            } else {
-                parent_2.0.set_right_ptr(cursor1.get_ptr());
-                println!("parent_2: RIGHT");
-            }    
-        }
+            let mut parent_1 = self.search_parent_vlr(cursor1.get_value());
+            let mut parent_2 = self.search_parent_vlr(cursor2.get_value());
 
-        
+            // dangles
+            if cursor1.cmp_ptr(self.head.as_ptr()) {
+                let mut par2 = parent_2.expect("Second cursor parent is NULL");
+
+                if par2.1 == Dir::LEFT {
+                    par2.0.set_left_ptr(NonNull::dangling());
+                } else {
+                    par2.0.set_right_ptr(NonNull::dangling());
+                }
+
+                self.head = cursor2.get_ptr();
+
+                return;
+            } else if cursor2.cmp_ptr(self.head.as_ptr()) {
+                let mut par1 = parent_1.expect("First cursor parent is NULL");
+
+                if par1.1 == Dir::LEFT {
+                    par1.0.set_left_ptr(NonNull::dangling());
+                } else {
+                    par1.0.set_right_ptr(NonNull::dangling());
+                }
+
+                self.head = cursor1.get_ptr();
+
+                return;
+            }
+            /*let mut curs_1_l = cursor1.get_left();
+            let mut curs_1_r = cursor1.get_right();
+
+            let mut curs_2_l = cursor2.get_left();
+            let mut curs_2_r = cursor2.get_right();*/
+
+            //      1
+            //     / \
+            //    2   3
+            //   / \ / \
+            //   4 5 6 7
+            //
+            //   if we wanted to swap 5 and 3
+            //
+            //      1
+            //     / \
+            //    2   5
+            //   / \ / \
+            //   4 3 6 7
+            //
+            //   swapped in-place
+            //
+            //   so what happened?
+            //
+            //   the parent of 5 is our head
+            //   the parent of 3 is 2
+            //
+            //   parent_2.set_right(node_1);
+            //   parent_1.set_right(node_2);
+            //
+            //   okay so now what
+            //   however, simply this would end up with our solution looking more like
+            //
+            //      1
+            //     / \
+            //    2   5
+            //   / \
+            //  4   3
+            //     / \
+            //    6   7
+
+            if parent_1.is_none() || parent_2.is_none() {
+                panic!("One ptr is null");
+            } else {
+
+                let mut parent_1 = parent_1.as_mut().unwrap();
+                let mut parent_2 = parent_2.as_mut().unwrap();
+
+                if parent_1.1 == Dir::LEFT {
+                    parent_1.0.set_left_ptr(cursor2.get_ptr());
+                } else {
+                    parent_1.0.set_right_ptr(cursor2.get_ptr());
+                }
+
+                if parent_2.1 == Dir::LEFT {
+                    parent_2.0.set_left_ptr(cursor1.get_ptr());
+                } else {
+                    parent_2.0.set_right_ptr(cursor1.get_ptr());
+                }    
+            }
+        }
     }
 
     pub fn swap_cursors_with_children(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) {
        // if we want children to come with, we need a ptr to each child node
        //  and then reparent each of them
+       //
+       //  actually, this should just be three calls to swap cursors.
+       //  swap left children, swap right children, swap parents
+       //
+       //  self.swap_cursors(cursor1, cursor2);
+       //  self.swap_cursors(cursor1.left(), cursor2.left());
+       //  self.swap_cursors(cursor1.right(), cursor2.right());
+       //
+       //  this won't work because moving a cursor is irreversible
     }
 
     pub fn rehead(&mut self, node: &mut TreeNode<T>, left: bool) {
@@ -556,14 +588,40 @@ mod tests {
 
         head_l.set_left(&mut head_l_l);
 
-        let curs1 = tree.search_vlr(&50).unwrap();
-        let curs2 = tree.search_vlr(&200).unwrap();
+        {
+            let curs1 = tree.search_vlr(&50).unwrap();
+            let curs2 = tree.search_vlr(&200).unwrap();
 
-        assert_eq!(*head.get_left().unwrap().get_elem() == 200, false);
+            assert_eq!(*head.get_left().unwrap().get_elem() == 200, false);
 
-        tree.swap_cursors(curs1, curs2);
+            tree.swap_cursors(curs1, curs2);
 
-        assert_eq!(*head.get_right().unwrap().get_elem() == 50, true);
-        assert_eq!(*head.get_left().unwrap().get_elem() == 200, true);
+            assert_eq!(*head.get_right().unwrap().get_elem() == 50, true);
+            assert_eq!(*head.get_left().unwrap().get_elem() == 200, true);
+        }
+
+        {
+            
+            let curs1 = tree.search_vlr(&100).unwrap();
+            let curs2 = tree.search_vlr(&100).unwrap();
+
+            assert_eq!(curs1.cmp_ptr(&head), true);
+            assert_eq!(curs2.cmp_ptr(&head), true);
+            tree.swap_cursors(curs1, curs2);
+
+            assert_eq!(*tree.get_head().unwrap().get_elem() == 100, true);
+
+        }
+
+        {
+            
+            let curs1 = tree.search_vlr(&50).unwrap();
+            let curs2 = tree.search_vlr(&100).unwrap();
+
+            tree.swap_cursors(curs1, curs2);
+
+            assert_eq!(*tree.get_head().unwrap().get_elem() == 50, true);
+
+        }
     }
 }
