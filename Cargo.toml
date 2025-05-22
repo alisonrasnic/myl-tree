@@ -1,6 +1,14 @@
+cargo-features = ["profile-rustflags"]
+
 [package]
 name = "myl_tree"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+
+[build]
+rustflags = ["-D", "warnings"]
+
+[profile.test]
+rustflags = ["-D", "warnings"]
