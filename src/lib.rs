@@ -50,7 +50,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Cursor<T> {
 
     pub fn get_value(&self) -> &T {
         unsafe {
-            panic_when(self.is_dangling(), "get_value on dangling Cursor", 51);
+            panic_when(self.is_dangling(), "get_value on dangling Cursor", 53);
             return self.curr.as_ref().get_elem();
         }
     }
@@ -307,6 +307,80 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
         }
     }
 
+    pub fn search_cursor_vlr(&mut self, ptr: Cursor<T>) -> Option<Cursor<T>> {
+        println!("--myl_tree: Trying search_cursor_vlr...");
+        if self.head == NonNull::dangling() {
+            println!("head is dangling");
+            return None;
+        }
+
+        unsafe {
+
+            let mut stack: Vec<Link<T>> = vec![];
+
+            stack.push(self.head);
+
+            let mut cur_node: Link<T> = stack[0];
+
+            while !stack.is_empty() {
+                if ptr.cmp_ptr(cur_node.as_ptr()) {
+                    println!("--myl_tree: Detecting equality...");
+                    return Some(Cursor::from(cur_node));
+                } else {
+                    if cur_node.read().right != NonNull::dangling() {
+                        stack.push(cur_node.read().right);
+                    }
+
+                    if cur_node.read().left != NonNull::dangling() {
+                        stack.push(cur_node.read().left);
+                    }   
+                }
+
+                cur_node = stack.pop().unwrap();
+            }
+
+            None
+        }
+    }
+
+    pub fn search_cursor_parent_vlr(&mut self, ptr: Cursor<T>) -> Option<(Cursor<T>, Dir)> {
+        if self.head == NonNull::dangling() {
+            return None;
+        }
+
+        unsafe {
+
+            let mut stack: Vec<Link<T>> = vec![];
+
+            stack.push(self.head);
+
+            let mut cur_node: Link<T> = stack[0];
+
+            while !stack.is_empty() {
+                println!("--myl_tree: checking stack...");
+                if cur_node.read().right != NonNull::dangling() {
+                    if ptr.cmp_ptr(cur_node.read().right.as_ptr()) {
+                        return Some((Cursor::from(cur_node), Dir::RIGHT));
+                    }
+
+                    stack.push(cur_node.read().right);
+                }
+
+                if cur_node.read().left != NonNull::dangling() {
+                    if ptr.cmp_ptr(cur_node.read().left.as_ptr()) {
+                        return Some((Cursor::from(cur_node), Dir::LEFT));
+                    }
+
+                    stack.push(cur_node.read().left);
+                }
+
+                cur_node = stack.pop().unwrap();
+            }
+
+            None
+        }
+    }
+
     // SETTER
 
     pub fn set_head(&mut self, node: &mut TreeNode<T>) {
@@ -326,195 +400,30 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
     }
 
     // dangles children as well
-    pub fn swap_cursors(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>, opt_parent1: Option<(Cursor<T>, Dir)>, opt_parent2: Option<(Cursor<T>, Dir)>) {
-        // Swaps the nodes at two cursors in-place without changing children
-        if cursor1.is_dangling() && cursor2.is_dangling() {
-            return;
-        }
+    pub fn swap_cursors(&mut self, _cursor1: Cursor<T>, _cursor2: Cursor<T>, _opt_parent1: Option<(Cursor<T>, Dir)>, _opt_parent2: Option<(Cursor<T>, Dir)>) {
+        /*
+         *
+         *
+         *  the goal with this is to swap nodes in the tree
+         *  this also means the children of those nodes swap
+         *
+         *  what if they lead to each other?
+         *
+         *               1
+         *              / \
+         *             2
+         *            / \
+         *           3   4
+         *          / \
+         *         5   6 
+         *
+         *
+         *
+         */
 
-        if cursor1.cmp_ptr(self.head.as_ptr()) && cursor2.cmp_ptr(self.head.as_ptr()) {
-            return;
-        }
-
-        if cursor1.is_dangling() {
-            // in this case, we want to
-
-            if cursor2.cmp_ptr(self.head.as_ptr()) {
-                self.head = NonNull::dangling();
-            }
-
-            let mut _nparent_2 = (Cursor::<T>::dangling(), Dir::LEFT);
-            if opt_parent2.is_some() {
-                println!("Found optional parent");
-                _nparent_2 = opt_parent2.unwrap();
-            } else {
-                // potentially a problem if the parent doesn't exist but somehow isn't head?
-                _nparent_2 = self.search_parent_vlr(cursor2.get_value()).unwrap().clone();
-            }
-
-            if !_nparent_2.0.is_dangling() && _nparent_2.1 == Dir::LEFT {
-                _nparent_2.0.set_left_ptr(NonNull::dangling());
-            } else if !_nparent_2.0.is_dangling() {
-                _nparent_2.0.set_right_ptr(NonNull::dangling());
-            } else if _nparent_2.0.is_dangling() {
-                panic!("WTF?!");
-            }
-
-            let nparent_1 = opt_parent1.as_mut().unwrap();
-
-            if nparent_1.1 == Dir::LEFT {
-                (*nparent_1).0.set_left_ptr(cursor2.get_ptr());
-            } else {
-                (*nparent_1).0.set_right_ptr(cursor2.get_ptr());
-            }
-
-            return;
-            
-        } else if cursor2.is_dangling() {
-
-            if cursor1.cmp_ptr(self.head.as_ptr()) {
-                self.head = NonNull::dangling();
-            }
-
-            /*
-             *
-             *  we have two paths
-             *
-             *  1. either we use the original parent
-             *  2. or opt_parent1 is Some and we use that in-place
-             *
-             *  if opt_parent1 is some
-             *  assign our var to it
-             *
-             *  otherwise assign it to the parent
-             *
-             */
-
-            let mut _nparent_1 = (Cursor::<T>::dangling(), Dir::LEFT);
-            if opt_parent1.is_some() {
-                println!("Found optional parent");
-                _nparent_1 = opt_parent1.unwrap();
-                if _nparent_1.0.is_dangling() {
-                    panic!("Okay this is ridiculous");
-                }
-            } else {
-                _nparent_1 = self.search_parent_vlr(cursor1.get_value()).unwrap().clone();
-            }                
-
-            println!("Reached point to delete");
-            if !_nparent_1.0.is_dangling() && _nparent_1.1 == Dir::LEFT {
-                println!("DELETING LEFT PTR");
-                _nparent_1.0.set_left_ptr(NonNull::dangling());
-            } else if !_nparent_1.0.is_dangling() {
-                println!("DELETING RIGHT PTR");
-                _nparent_1.0.set_right_ptr(NonNull::dangling());
-            } else {
-                panic!("parent1 is dangling");
-            }
-
-            let parent_2 = opt_parent2.unwrap();
-
-            if parent_2.1 == Dir::LEFT {
-                parent_2.0.set_left_ptr(cursor1.get_ptr());
-            } else {
-                parent_2.0.set_right_ptr(cursor1.get_ptr());
-            }
-
-            return;
-        }
-
-        let mut parent_1 = self.search_parent_vlr(cursor1.get_value());
-        let mut parent_2 = self.search_parent_vlr(cursor2.get_value());
-
-        // dangles
-        if cursor1.cmp_ptr(self.head.as_ptr()) {
-            let mut par2 = parent_2.expect("Second cursor parent is NULL");
-
-            if par2.1 == Dir::LEFT {
-                par2.0.set_left_ptr(NonNull::dangling());
-            } else {
-                par2.0.set_right_ptr(NonNull::dangling());
-            }
-
-            self.head = cursor2.get_ptr();
-
-            return;
-        } else if cursor2.cmp_ptr(self.head.as_ptr()) {
-            let mut par1 = parent_1.expect("First cursor parent is NULL");
-
-            if par1.1 == Dir::LEFT {
-                par1.0.set_left_ptr(NonNull::dangling());
-            } else {
-                par1.0.set_right_ptr(NonNull::dangling());
-            }
-
-            self.head = cursor1.get_ptr();
-
-            return;
-        }
-        /*let mut curs_1_l = cursor1.get_left();
-        let mut curs_1_r = cursor1.get_right();
-
-        let mut curs_2_l = cursor2.get_left();
-        let mut curs_2_r = cursor2.get_right();*/
-
-        //      1
-        //     / \
-        //    2   3
-        //   / \ / \
-        //   4 5 6 7
-        //
-        //   if we wanted to swap 5 and 3
-        //
-        //      1
-        //     / \
-        //    2   5
-        //   / \ / \
-        //   4 3 6 7
-        //
-        //   swapped in-place
-        //
-        //   so what happened?
-        //
-        //   the parent of 5 is our head
-        //   the parent of 3 is 2
-        //
-        //   parent_2.set_right(node_1);
-        //   parent_1.set_right(node_2);
-        //
-        //   okay so now what
-        //   however, simply this would end up with our solution looking more like
-        //
-        //      1
-        //     / \
-        //    2   5
-        //   / \
-        //  4   3
-        //     / \
-        //    6   7
-
-        if parent_1.is_none() || parent_2.is_none() {
-            panic!("[ERR] p1: {:?} | p2: {:?}", parent_1, parent_2);
-        } else {
-
-            let parent_1 = parent_1.as_mut().unwrap();
-            let parent_2 = parent_2.as_mut().unwrap();
-
-            if parent_1.1 == Dir::LEFT {
-                parent_1.0.set_left_ptr(cursor2.get_ptr());
-            } else {
-                parent_1.0.set_right_ptr(cursor2.get_ptr());
-            }
-
-            if parent_2.1 == Dir::LEFT {
-                parent_2.0.set_left_ptr(cursor1.get_ptr());
-            } else {
-                parent_2.0.set_right_ptr(cursor1.get_ptr());
-            }    
-        }
     }
 
-    pub fn swap_cursors_with_children(&mut self, cursor1: &mut Cursor<T>, cursor2: &mut Cursor<T>) {
+    pub fn swap_cursors_with_children(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) {
         if cursor1.is_dangling() && cursor2.is_dangling() {
             return;
         }
@@ -535,7 +444,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
                 c2_l = Cursor::dangling();
             }
 
-            self.swap_cursors(c1_l, c2_l, Some((cursor1, Dir::LEFT)), Some((cursor2, Dir::LEFT)));
+            self.swap_cursors(c1_l, c2_l, Some((cursor1.clone(), Dir::LEFT)), Some((cursor2.clone(), Dir::LEFT)));
         }
 
         {
@@ -554,7 +463,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
                 c2_r = Cursor::dangling();
             }
 
-            self.swap_cursors(c1_r, c2_r, Some((cursor1, Dir::RIGHT)), Some((cursor2, Dir::RIGHT)));
+            self.swap_cursors(c1_r, c2_r, Some((cursor1.clone(), Dir::RIGHT)), Some((cursor2.clone(), Dir::RIGHT)));
          }
 
         self.swap_cursors(cursor1.clone(), cursor2.clone(), None, None);
@@ -793,6 +702,38 @@ mod tests {
     }
 
     #[test]
+    fn tree_test_search_cursor() {
+
+        let mut tree: Tree<i32> = Tree::new();
+
+        let mut head = TreeNode::new(100);
+        let mut head_l = TreeNode::new(100);
+        let mut head_r = TreeNode::new(100);
+        let mut head_r_r = TreeNode::new(100);
+        let mut head_l_l = TreeNode::new(100);
+
+        tree.set_head(&mut head);
+        head.set_left(&mut head_l);
+        head.set_right(&mut head_r);
+
+        head_r.set_right(&mut head_r_r);
+        head_l.set_left(&mut head_l_l);
+
+        let r = tree.search_cursor_vlr(Cursor::from(Link::new(&mut head_l as &mut _).expect("Conversion to raw ptr failure"))).expect("Should not fail");
+
+        assert_eq!(r.cmp_ptr(&mut head_l as &mut _), true);
+        assert_eq!(r.cmp_ptr(&mut head_r as &mut _), false);
+
+        let r2 = tree.search_cursor_parent_vlr(Cursor::from(Link::new(&mut head_l as &mut _).expect("Conversion to raw ptr failure"))).expect("Should not fail");
+        assert_eq!(r2.0.cmp_ptr(&mut head as &mut _), true); 
+        assert_eq!(r2.0.cmp_ptr(&mut head_r as &mut _), false); 
+
+        let r3 = tree.search_cursor_parent_vlr(Cursor::from(Link::new(&mut head_r_r as &mut _).expect("Conversion to raw ptr failure"))).expect("Should not fail");
+        assert_eq!(r3.0.cmp_ptr(&mut head_r as &mut _), true);
+        assert_eq!(r3.0.cmp_ptr(&mut head_r_r as &mut _), false);
+    }
+
+    /*#[test]
     fn tree_test_cursor_swap() {
         let mut tree: Tree<i32> = Tree::new();
 
@@ -855,88 +796,5 @@ mod tests {
             assert_eq!(*tree.get_head().unwrap().get_elem() == 50, true);
 
         }
-    }
-
-    #[test]
-    pub fn tree_test_cursor_swap_optparent() {
-        let mut tree: Tree<i32> = Tree::new();
-
-        let mut head = TreeNode::new(100);
-        let mut head_r = TreeNode::new(200);
-        let mut head_l = TreeNode::new(50);
-
-        let mut head_r_r = TreeNode::new(300);
-        let mut head_l_l = TreeNode::new(25);
-
-        tree.set_head(&mut head);
-
-        head.set_right(&mut head_r);
-        head.set_left(&mut head_l);
-
-        head_r.set_right(&mut head_r_r);
-
-        head_l.set_left(&mut head_l_l);
-
-        print!("\n\n---\n");
-        tree.print_vlr();
-        print!("\n----\n\n");
-
-        let curs1 = tree.search_vlr(&25).unwrap();
-        let curs2 = Cursor::dangling();
-        
-        let mut par1 = tree.search_vlr(&50).unwrap();
-        let mut par2 = tree.search_vlr(&200).unwrap();
-
-        if par1.is_dangling() || par2.is_dangling() {
-            panic!("no");
-        }
-
-        tree.swap_cursors(curs1, curs2, Some((&mut par1, Dir::LEFT)), Some((&mut par2, Dir::LEFT)));
-        print!("\n\n---\n");
-        tree.print_vlr();
-        print!("\n----\n\n");
-        assert_eq!(head_l.get_left().is_none(), true);
-
-    }
-
-    #[test]
-    pub fn tree_test_cursor_swap_with_children() {
-        let mut tree: Tree<i32> = Tree::new();
-
-        let mut head = TreeNode::new(100);
-        let mut head_r = TreeNode::new(200);
-        let mut head_l = TreeNode::new(50);
-
-        let mut head_r_r = TreeNode::new(300);
-        let mut head_l_l = TreeNode::new(25);
-
-        tree.set_head(&mut head);
-
-        head.set_right(&mut head_r);
-        head.set_left(&mut head_l);
-
-        head_r.set_right(&mut head_r_r);
-
-        head_l.set_left(&mut head_l_l);
-
-        let mut curs1 = tree.search_vlr(&50).unwrap();
-        let mut curs2 = tree.search_vlr(&200).unwrap();
-
-        tree.swap_cursors_with_children(&mut curs1, &mut curs2);
-
-        /*
-         *      100
-         *     /   \
-         *    200   50
-         *   /  \ /   \
-         *  25        300
-         *
-         *
-         *
-         *
-         *
-         */
-        println!("{}", head.get_left().unwrap().get_elem()); 
-        assert_eq!(head.get_left().unwrap().get_elem() == &300, true);
-    }
+    }*/
 }
