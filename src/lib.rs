@@ -144,7 +144,7 @@ pub struct Tree<T> {
     _ghost: PhantomData<T>,
 }
 
-impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
+impl<T: std::cmp::PartialEq + std::fmt::Debug + Clone> Tree<T> {
     pub fn new() -> Self {
         Self {
             head:   NonNull::dangling(),
@@ -381,6 +381,42 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
         }
     }
 
+    /*pub fn cursor_has_child(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) -> bool {
+
+        // hi
+
+        let mut stack: Vec<Link<T>> = vec![];
+
+        stack.push(cursor1.get_ptr());
+
+        let cur_node = stack.pop();
+
+        while cur_node.is_some() {
+
+            unsafe {
+                let n = cur_node.unwrap();
+                let right = cursor1.get_ptr().read().get_right();
+                let left = cursor1.get_ptr().read().get_left();
+                if cursor2.cmp_ptr() || cursor2.cmp_ptr(n.read().get_right().as_ptr()) {
+                    return true; 
+                }
+
+                if let Some(r) = right {
+                    stack.push(NonNull::new(r as &mut _).expect("unreachable"));
+                }
+
+                if let Some(l) = left {
+                    stack.push(NonNull::new(l as &mut _).expect("unreachable")); 
+                }
+            }
+
+            cur_node = stack.pop();
+        }
+
+
+        false
+    }*/
+
     // SETTER
 
     pub fn set_head(&mut self, node: &mut TreeNode<T>) {
@@ -400,7 +436,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
     }
 
     // dangles children as well
-    pub fn swap_cursors(&mut self, _cursor1: Cursor<T>, _cursor2: Cursor<T>, _opt_parent1: Option<(Cursor<T>, Dir)>, _opt_parent2: Option<(Cursor<T>, Dir)>) {
+    /*pub fn swap_cursors(&mut self, _cursor1: Cursor<T>, _cursor2: Cursor<T>, _opt_parent1: Option<(Cursor<T>, Dir)>, _opt_parent2: Option<(Cursor<T>, Dir)>) {
         /*
          *
          *
@@ -467,6 +503,25 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Tree<T> {
          }
 
         self.swap_cursors(cursor1.clone(), cursor2.clone(), None, None);
+    }*/
+
+    pub fn swap_cursors_values(&mut self, cursor1: Cursor<T>, cursor2: Cursor<T>) {
+
+        if cursor1.is_dangling() || cursor2.is_dangling() {
+            return;
+        }
+
+        unsafe {
+
+            let node1 = cursor1.get_ptr().as_ptr();
+            let node2 = cursor2.get_ptr().as_ptr();
+
+            let val1 = (*node1).elem.clone();
+
+            (*node1).elem = (*node2).elem.clone();
+
+            (*node2).elem = val1;
+        }
     }
 
     pub fn rehead(&mut self, node: &mut TreeNode<T>, left: bool) {
@@ -732,69 +787,46 @@ mod tests {
         assert_eq!(r3.0.cmp_ptr(&mut head_r as &mut _), true);
         assert_eq!(r3.0.cmp_ptr(&mut head_r_r as &mut _), false);
     }
+    
+    #[test]
+    fn tree_test_cursors_values_swap() {
 
-    /*#[test]
-    fn tree_test_cursor_swap() {
+        /*
+         *           100
+         *          /   \
+         *        200   300
+         *         \    /
+         *          400 500
+         *
+         *
+         *
+         *
+         */
+
         let mut tree: Tree<i32> = Tree::new();
 
         let mut head = TreeNode::new(100);
-        let mut head_r = TreeNode::new(200);
-        let mut head_l = TreeNode::new(50);
+        let mut head_l = TreeNode::new(200);
+        let mut head_r = TreeNode::new(300);
 
-        let mut head_r_r = TreeNode::new(300);
-        let mut head_l_l = TreeNode::new(25);
+        let mut head_l_r = TreeNode::new(400);
+        let mut head_r_l = TreeNode::new(500);
 
         tree.set_head(&mut head);
-
         head.set_right(&mut head_r);
         head.set_left(&mut head_l);
 
-        head_r.set_right(&mut head_r_r);
+        head_l.set_right(&mut head_l_r);
 
-        head_l.set_left(&mut head_l_l);
+        head_r.set_left(&mut head_r_l);
 
-        {
-            print!("\n\n---\n");
-            tree.print_vlr();
-            print!("\n----\n\n");
-            let curs1 = tree.search_vlr(&50).unwrap();
-            let curs2 = tree.search_vlr(&200).unwrap();
+        let curs1 = tree.search_vlr(&200).unwrap();
+        let curs2 = tree.search_vlr(&300).unwrap();
 
-            assert_eq!(*head.get_left().unwrap().get_elem() == 200, false);
+        assert_eq!(head_l.get_elem() == &300, false);
 
-            tree.swap_cursors(curs1, curs2, None, None);
+        tree.swap_cursors_values(curs1, curs2);
 
-            assert_eq!(*head.get_right().unwrap().get_elem() == 50, true);
-            assert_eq!(*head.get_left().unwrap().get_elem() == 200, true);
-        }
-
-        {
-            
-            print!("\n\n---\n");
-            tree.print_vlr();
-            print!("\n----\n\n");
-            let curs1 = tree.search_vlr(&100).unwrap();
-            let curs2 = tree.search_vlr(&100).unwrap();
-
-            assert_eq!(curs1.cmp_ptr(&head), true);
-            assert_eq!(curs2.cmp_ptr(&head), true);
-            tree.swap_cursors(curs1, curs2, None, None);
-
-            assert_eq!(*tree.get_head().unwrap().get_elem() == 100, true);
-
-        }
-
-        {
-            
-            print!("\n\n---\n");
-            tree.print_vlr();
-            print!("\n----\n\n");
-            let curs1 = tree.search_vlr(&50).unwrap();
-            let curs2 = tree.search_vlr(&100).unwrap();
-            tree.swap_cursors(curs1, curs2, None, None);
-
-            assert_eq!(*tree.get_head().unwrap().get_elem() == 50, true);
-
-        }
-    }*/
+        assert_eq!(head_l.get_elem() == &300, true);
+    }
 }
