@@ -139,6 +139,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Cursor<T> {
     }   
 }   
 
+#[derive(Debug)]
 pub struct Tree<T> {
     head:   Link<T>,
     _ghost: PhantomData<T>,
@@ -657,6 +658,8 @@ mod tests {
         assert_eq!(head.get_left() == Some(box_l_l), false);
 
         assert_eq!(head.get_right().unwrap().get_right() == Some(box_r_r), true);
+
+        tree.print_vlr();
     }
 
     #[test]
