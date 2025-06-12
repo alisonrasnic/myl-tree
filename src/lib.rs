@@ -139,13 +139,13 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug> Cursor<T> {
     }   
 }   
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Tree<T> {
     head:   Link<T>,
     _ghost: PhantomData<T>,
 }
 
-impl<T: std::cmp::PartialEq + std::fmt::Debug + Clone> Tree<T> {
+impl<T: std::cmp::PartialEq + std::fmt::Debug + Clone + Copy> Tree<T> {
     pub fn new() -> Self {
         Self {
             head:   NonNull::dangling(),
@@ -565,7 +565,7 @@ impl<T: std::cmp::PartialEq + std::fmt::Debug + Clone> Tree<T> {
     
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub struct TreeNode<T> {
     elem:  T,
     left:  Link<T>,
@@ -831,5 +831,16 @@ mod tests {
         tree.swap_cursors_values(curs1, curs2);
 
         assert_eq!(head_l.get_elem() == &300, true);
+    }
+
+    #[test]
+    fn tree_test_rehead() {
+        let mut tree: Tree<i32> = Tree::new();
+        let mut head = TreeNode::new(100);
+
+        let mut head_2 = TreeNode::new(200);
+        tree.rehead(&mut head, false);
+        tree.rehead(&mut head_2, false);
+        tree.print_vlr();
     }
 }
